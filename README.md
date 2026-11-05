@@ -29,34 +29,50 @@ The infrastructure consists of:
 
 ```mermaid
 flowchart TB
-    Internet((Internet))
+    Internet(("Internet"))
+    Terraform["Terraform CLI"]
 
-    subgraph AWS["AWS Cloud - ap-southeast-2"]
-        subgraph VPC["Amazon VPC - 10.0.0.0/16"]
+    subgraph AWS["AWS CLOUD | ap-southeast-2"]
+        direction TB
+
+        subgraph VPC["AMAZON VPC | 10.0.0.0/16"]
+            direction TB
+
             IGW["Internet Gateway"]
-
-            subgraph Public["Public Subnets"]
-                PUB1["Public Subnet 1<br/>10.0.1.0/24<br/>AZ: ap-southeast-2a"]
-                PUB2["Public Subnet 2<br/>10.0.2.0/24<br/>AZ: ap-southeast-2b"]
-                EC2["Amazon EC2<br/>Web Server"]
-            end
-
-            subgraph Private["Private Subnets"]
-                PRIV1["Private Subnet 1<br/>10.0.11.0/24<br/>AZ: ap-southeast-2a"]
-                PRIV2["Private Subnet 2<br/>10.0.12.0/24<br/>AZ: ap-southeast-2b"]
-                RDS["Amazon RDS<br/>MySQL Database"]
-            end
-
             PUBRT["Public Route Table"]
+
+            subgraph PUBLIC["PUBLIC TIER"]
+                direction LR
+                subgraph AZ1PUB["Availability Zone: ap-southeast-2a"]
+                    PUB1["Public Subnet 1<br/>10.0.1.0/24"]
+                    EC2["EC2 Web Server"]
+                end
+                subgraph AZ2PUB["Availability Zone: ap-southeast-2b"]
+                    PUB2["Public Subnet 2<br/>10.0.2.0/24"]
+                end
+            end
+
             PRIVRT["Private Route Table"]
 
-            SGWEB["Web Security Group"]
-            SGDB["Database Security Group"]
+            subgraph PRIVATE["PRIVATE TIER"]
+                direction LR
+                subgraph AZ1PRIV["Availability Zone: ap-southeast-2a"]
+                    PRIV1["Private Subnet 1<br/>10.0.11.0/24"]
+                end
+                subgraph AZ2PRIV["Availability Zone: ap-southeast-2b"]
+                    PRIV2["Private Subnet 2<br/>10.0.12.0/24"]
+                end
+                RDS["Amazon RDS<br/>MySQL Database<br/>Not publicly accessible"]
+            end
+
+            WEBSG["Web Security Group"]
+            DBSG["Database Security Group<br/>Inbound TCP 3306<br/>Source: Web Security Group"]
         end
 
-        subgraph State["Terraform State Management"]
-            S3["Amazon S3<br/>Remote State"]
-            DDB["DynamoDB<br/>State Locking"]
+        subgraph STATE["REMOTE STATE MANAGEMENT"]
+            direction LR
+            S3[("Amazon S3<br/>Terraform State")]
+            DDB[("Amazon DynamoDB<br/>State Locking")]
         end
     end
 
@@ -65,16 +81,40 @@ flowchart TB
     PUBRT --> PUB1
     PUBRT --> PUB2
     EC2 --- PUB1
+
     PRIVRT --> PRIV1
     PRIVRT --> PRIV2
-    EC2 --> SGWEB
-    SGWEB -->|"MySQL traffic allowed"| SGDB
-    SGDB --> RDS
     RDS --- PRIV1
     RDS --- PRIV2
 
-    TF["Terraform CLI"] --> S3
-    TF --> DDB
+    EC2 --> WEBSG
+    WEBSG -. "Allows MySQL traffic" .-> DBSG
+    DBSG -. "Protects database access" .-> RDS
+
+    Terraform --> S3
+    Terraform --> DDB
+
+    classDef internet fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e,stroke-width:2px
+    classDef network fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:1.5px
+    classDef public fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:1.5px
+    classDef private fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1.5px
+    classDef security fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:1.5px
+    classDef state fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:1.5px
+    classDef terraform fill:#e0e7ff,stroke:#4f46e5,color:#312e81,stroke-width:2px
+
+    class Internet internet
+    class IGW,PUBRT,PRIVRT network
+    class PUB1,PUB2,EC2 public
+    class PRIV1,PRIV2,RDS private
+    class WEBSG,DBSG security
+    class S3,DDB state
+    class Terraform terraform
+
+    style AWS fill:#f8fafc,stroke:#334155,stroke-width:2px,color:#0f172a
+    style VPC fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style PUBLIC fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+    style PRIVATE fill:#fffbeb,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    style STATE fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95
 ```
 
 *The diagram represents the intended architecture. The private route table currently provides private subnet routing; a NAT Gateway has not been configured.*
