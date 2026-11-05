@@ -1,0 +1,16 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Sensitive local files
+*.tfvars
+*.tfvars.json
+terraform-state-backup.json
+
+# Credentials
+.aws/
+.env
